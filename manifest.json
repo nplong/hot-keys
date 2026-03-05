@@ -1,0 +1,21 @@
+{
+  "manifest_version": 3,
+  "name": "hot-keys",
+  "version": "1.0.0",
+  "description": "Define shortcut keys mapped to text snippets. Press a shortcut to insert text into the focused input.",
+  "permissions": [
+    "storage"
+  ],
+  "content_scripts": [
+    {
+      "matches": ["<all_urls>"],
+      "js": ["content.js"],
+      "run_at": "document_idle"
+    }
+  ],
+  "options_page": "options.html",
+  "action": {
+    "default_popup": "popup.html",
+    "default_title": "hot-keys"
+  }
+}

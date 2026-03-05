@@ -1,0 +1,46 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <title>hot-keys</title>
+  <style>
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+      font-size: 14px;
+      padding: 16px 20px;
+      min-width: 200px;
+      color: #222;
+      background: #fff;
+    }
+
+    h2 {
+      font-size: 16px;
+      font-weight: 600;
+      margin-bottom: 12px;
+    }
+
+    button {
+      width: 100%;
+      padding: 8px 0;
+      background: #4a90e2;
+      color: #fff;
+      border: none;
+      border-radius: 5px;
+      font-size: 14px;
+      cursor: pointer;
+      transition: background 0.15s;
+    }
+
+    button:hover { background: #357abd; }
+  </style>
+</head>
+<body>
+  <h2>hot-keys</h2>
+  <button id="open-options">Manage Shortcuts</button>
+  <script>
+    document.getElementById('open-options').addEventListener('click', () => {
+      chrome.runtime.openOptionsPage();
+    });
+  </script>
+</body>
+</html>
