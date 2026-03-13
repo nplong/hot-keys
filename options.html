@@ -5,174 +5,290 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>hot-keys – Options</title>
   <style>
-    * { box-sizing: border-box; margin: 0; padding: 0; }
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
 
     body {
       font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
       font-size: 14px;
-      background: #f5f5f5;
-      color: #222;
-      padding: 24px;
-      min-width: 560px;
+      background: #f2f2f7;
+      color: #1c1c1e;
+      min-width: 620px;
     }
 
-    h1 {
-      font-size: 20px;
-      font-weight: 600;
-      margin-bottom: 10px;
-      color: #111;
-    }
-
-    .tip {
-      margin-bottom: 20px;
-      font-size: 13px;
-      color: #555;
-      background: #eef4fd;
-      border: 1px solid #c5d9f5;
-      border-radius: 6px;
-      padding: 8px 12px;
-    }
-
-    .tip kbd {
-      background: #f0f0f0;
-      border: 1px solid #ccc;
-      border-radius: 3px;
-      padding: 1px 6px;
-      font-size: 12px;
-      font-family: monospace;
-    }
-
-    table {
-      width: 100%;
-      border-collapse: collapse;
+    /* ── Top bar ── */
+    .topbar {
       background: #fff;
-      border-radius: 8px;
-      overflow: hidden;
-      box-shadow: 0 1px 3px rgba(0,0,0,0.12);
+      border-bottom: 1px solid #e5e5ea;
+      padding: 0 32px;
+      height: 58px;
+      display: flex;
+      align-items: center;
+      gap: 14px;
+      position: sticky;
+      top: 0;
+      z-index: 100;
     }
-
-    th {
-      background: #f0f0f0;
-      text-align: left;
-      padding: 10px 12px;
-      font-weight: 600;
-      font-size: 12px;
+    .topbar-title {
+      font-size: 18px;
+      font-weight: 800;
+      letter-spacing: 0.1em;
       text-transform: uppercase;
-      letter-spacing: 0.05em;
-      color: #555;
-      border-bottom: 1px solid #ddd;
+      background: linear-gradient(135deg, #6c63ff, #06b6d4);
+      -webkit-background-clip: text;
+      -webkit-text-fill-color: transparent;
+      background-clip: text;
+      flex: 1;
     }
-
-    td {
-      padding: 8px 12px;
-      border-bottom: 1px solid #eee;
-      vertical-align: middle;
+    .topbar-hint {
+      font-size: 12px;
+      color: #aeaeb2;
+      background: #f2f2f7;
+      border: 1px solid #e5e5ea;
+      border-radius: 8px;
+      padding: 4px 11px;
+      letter-spacing: 0.03em;
     }
-
-    tr:last-child td { border-bottom: none; }
-    tr.saved-row:hover { background: #fafafa; }
-
-    input[type="text"], textarea {
-      border: 1px solid #ccc;
-      border-radius: 4px;
-      padding: 5px 8px;
-      font-size: 13px;
+    .topbar-hint kbd {
       font-family: inherit;
-      outline: none;
-      transition: border-color 0.15s;
+      font-weight: 700;
+      color: #6c63ff;
     }
 
-    input[type="text"]:focus, textarea:focus {
-      border-color: #4a90e2;
-      box-shadow: 0 0 0 2px rgba(74,144,226,0.15);
-    }
+    /* ── Page body ── */
+    .page { padding: 28px 32px 48px; }
 
-    .label-input {
-      width: 160px;
+    /* ── Section: Add new ── */
+    .add-card {
+      background: #fff;
+      border-radius: 16px;
+      box-shadow: 0 1px 4px rgba(0,0,0,0.07);
+      padding: 22px 24px;
+      margin-bottom: 32px;
     }
-
-    .message-textarea {
-      width: 100%;
-      resize: vertical;
-      min-height: 36px;
-      max-height: 120px;
-    }
-
-    button {
-      border: none;
-      border-radius: 4px;
-      padding: 5px 12px;
+    .add-card-title {
       font-size: 13px;
+      font-weight: 700;
+      letter-spacing: 0.08em;
+      text-transform: uppercase;
+      color: #8e8e93;
+      margin-bottom: 16px;
+    }
+    .add-fields {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 12px;
+      margin-bottom: 14px;
+    }
+    .field-group {
+      display: flex;
+      flex-direction: column;
+      gap: 5px;
+    }
+    .field-group label {
+      font-size: 11.5px;
+      font-weight: 600;
+      letter-spacing: 0.06em;
+      text-transform: uppercase;
+      color: #aeaeb2;
+    }
+    .field-group.full { grid-column: 1 / -1; }
+    input[type="text"], textarea, select {
+      border: 1.5px solid #e5e5ea;
+      border-radius: 10px;
+      padding: 8px 12px;
+      font-size: 14px;
+      font-family: inherit;
+      color: #1c1c1e;
+      background: #fafafa;
+      outline: none;
+      transition: border-color 0.15s, box-shadow 0.15s;
+      width: 100%;
+    }
+    input[type="text"]:focus, textarea:focus, select:focus {
+      border-color: #6c63ff;
+      box-shadow: 0 0 0 3px rgba(108,99,255,0.12);
+      background: #fff;
+    }
+    textarea {
+      resize: vertical;
+      min-height: 72px;
+      max-height: 180px;
+      line-height: 1.5;
+    }
+    .add-row-actions {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+    }
+
+    /* ── Buttons ── */
+    .btn {
+      border: none;
+      border-radius: 10px;
+      padding: 8px 20px;
+      font-size: 13.5px;
+      font-weight: 600;
       cursor: pointer;
-      transition: background 0.15s;
+      transition: background 0.15s, transform 0.1s;
+      white-space: nowrap;
     }
-
-    .btn-save {
-      background: #4a90e2;
-      color: #fff;
+    .btn:active { transform: scale(0.97); }
+    .btn-primary { background: #6c63ff; color: #fff; }
+    .btn-primary:hover { background: #574fd6; }
+    .btn-danger  { background: #ff3b30; color: #fff; }
+    .btn-danger:hover  { background: #d62b22; }
+    .btn-ghost {
+      background: transparent;
+      color: #6c63ff;
+      border: 1.5px solid #e5e5ea;
     }
-    .btn-save:hover { background: #357abd; }
-
-    .btn-delete {
-      background: #e74c3c;
-      color: #fff;
-      margin-left: 6px;
-    }
-    .btn-delete:hover { background: #c0392b; }
-
-    #add-row td { background: #f9fff9; }
-
-    .btn-add {
-      background: #27ae60;
-      color: #fff;
-      margin-top: 12px;
-    }
-    .btn-add:hover { background: #1e8449; }
+    .btn-ghost:hover { background: #f2f2f7; }
+    .btn-sm { padding: 5px 12px; font-size: 12px; border-radius: 8px; }
 
     #status {
-      margin-top: 14px;
       font-size: 13px;
-      color: #27ae60;
+      font-weight: 600;
+      color: #34c759;
+      margin-left: auto;
       min-height: 20px;
+      transition: opacity 0.3s;
     }
+
+    /* ── Category groups ── */
+    .cat-group { margin-bottom: 30px; }
+    .cat-group:last-child { margin-bottom: 0; }
+
+    .cat-header {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      margin-bottom: 12px;
+    }
+    .cat-name {
+      font-size: 11px;
+      font-weight: 700;
+      letter-spacing: 0.13em;
+      text-transform: uppercase;
+      color: #8e8e93;
+    }
+    .cat-divider {
+      flex: 1;
+      height: 1px;
+      background: #e5e5ea;
+    }
+    .cat-count {
+      font-size: 11px;
+      color: #c7c7cc;
+      font-weight: 600;
+    }
+
+    /* ── Snippet cards grid ── */
+    .snippets-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fill, minmax(260px, 1fr));
+      gap: 12px;
+    }
+
+    .snippet-card {
+      background: #fff;
+      border-radius: 14px;
+      box-shadow: 0 1px 4px rgba(0,0,0,0.07);
+      overflow: hidden;
+      display: flex;
+      flex-direction: column;
+      transition: box-shadow 0.15s;
+    }
+    .snippet-card:hover {
+      box-shadow: 0 4px 16px rgba(0,0,0,0.11);
+    }
+
+    /* Colored accent strip on top */
+    .snippet-card-accent {
+      height: 5px;
+      width: 100%;
+      flex-shrink: 0;
+    }
+
+    .snippet-card-body {
+      padding: 14px 16px 12px;
+      flex: 1;
+      display: flex;
+      flex-direction: column;
+      gap: 10px;
+    }
+
+    .snippet-card .field-group label { color: #c7c7cc; }
+
+    .snippet-card-actions {
+      padding: 0 16px 14px;
+      display: flex;
+      gap: 8px;
+      justify-content: flex-end;
+    }
+
+    /* ── Accent strip gradients (same palette as picker) ── */
+    .accent-0  { background: linear-gradient(90deg,#e0c3fc,#8ec5fc); }
+    .accent-1  { background: linear-gradient(90deg,#f9d976,#f39f86); }
+    .accent-2  { background: linear-gradient(90deg,#a1ffce,#00cdac); }
+    .accent-3  { background: linear-gradient(90deg,#fbc2eb,#a6c1ee); }
+    .accent-4  { background: linear-gradient(90deg,#ffecd2,#fcb69f); }
+    .accent-5  { background: linear-gradient(90deg,#c2e9fb,#a1c4fd); }
+    .accent-6  { background: linear-gradient(90deg,#d4fc79,#96e6a1); }
+    .accent-7  { background: linear-gradient(90deg,#fccb90,#d57eeb); }
+    .accent-8  { background: linear-gradient(90deg,#a8edea,#fed6e3); }
+    .accent-9  { background: linear-gradient(90deg,#e0f7fa,#80deea); }
+    .accent-10 { background: linear-gradient(90deg,#ffe0b2,#ffab91); }
+    .accent-11 { background: linear-gradient(90deg,#f3e7e9,#6c63ff); }
+
+    .empty-state {
+      text-align: center;
+      padding: 40px 20px;
+      color: #c7c7cc;
+      font-size: 14px;
+      background: #fff;
+      border-radius: 16px;
+    }
+    .empty-state strong { color: #aeaeb2; display: block; font-size: 16px; margin-bottom: 6px; }
   </style>
 </head>
 <body>
-  <h1>hot-keys</h1>
 
-  <p class="tip">
-    Press <kbd>Alt+S</kbd> on any page to open the snippet picker,
-    then click an item to insert it into the focused text field.
-  </p>
+  <!-- Top bar -->
+  <div class="topbar">
+    <div class="topbar-title">hot-keys</div>
+    <div class="topbar-hint">Press <kbd>Alt+S</kbd> on any page to open the picker</div>
+  </div>
 
-  <table id="shortcuts-table">
-    <thead>
-      <tr>
-        <th style="width:180px">Label</th>
-        <th>Message</th>
-        <th style="width:120px">Actions</th>
-      </tr>
-    </thead>
-    <tbody id="shortcuts-body">
-      <!-- rows injected by options.js -->
-    </tbody>
-    <tfoot>
-      <tr id="add-row">
-        <td>
-          <input type="text" class="label-input" id="new-label"
-                 placeholder="e.g. Greeting" />
-        </td>
-        <td>
-          <textarea class="message-textarea" id="new-message"
-                    placeholder="Text to insert…"></textarea>
-        </td>
-        <td></td>
-      </tr>
-    </tfoot>
-  </table>
+  <div class="page">
 
-  <button class="btn-add" id="btn-add">+ Add Snippet</button>
-  <div id="status"></div>
+    <!-- Add new snippet -->
+    <div class="add-card">
+      <div class="add-card-title">New Snippet</div>
+      <div class="add-fields">
+        <div class="field-group">
+          <label for="new-label">Label</label>
+          <input type="text" id="new-label" placeholder="e.g. Greeting" autocomplete="off" />
+        </div>
+        <div class="field-group">
+          <label for="new-category">Category</label>
+          <input type="text" id="new-category" placeholder="e.g. Sales" list="cat-list" autocomplete="off" />
+          <datalist id="cat-list"></datalist>
+        </div>
+        <div class="field-group full">
+          <label for="new-message">Message</label>
+          <textarea id="new-message" placeholder="Text to insert when selected…"></textarea>
+        </div>
+      </div>
+      <div class="add-row-actions">
+        <button class="btn btn-primary" id="btn-add">+ Add Snippet</button>
+        <span id="status"></span>
+      </div>
+    </div>
+
+    <!-- Saved snippets grouped by category -->
+    <div id="snippets-container"></div>
+
+  </div>
 
   <script src="options.js"></script>
 </body>

@@ -1,6 +1,6 @@
 // hot-keys content script
-// Alt+S opens a picker modal listing all saved snippets.
-// Clicking an item inserts its text directly into the last focused input.
+// Alt+S (layout-independent via e.code) opens a gallery picker modal.
+// Items are grouped by category; click or keyboard-select to insert text.
 
 let shortcuts = [];
 
@@ -24,11 +24,7 @@ let lastFocused = null;
 
 document.addEventListener('focusin', (e) => {
   const el = e.target;
-  if (
-    el.tagName === 'INPUT' ||
-    el.tagName === 'TEXTAREA' ||
-    el.isContentEditable
-  ) {
+  if (el.tagName === 'INPUT' || el.tagName === 'TEXTAREA' || el.isContentEditable) {
     lastFocused = el;
   }
 }, true);
@@ -44,10 +40,9 @@ function insertInto(el, text) {
   }
   if (el.tagName === 'INPUT' || el.tagName === 'TEXTAREA') {
     const start = el.selectionStart;
-    const end = el.selectionEnd;
+    const end   = el.selectionEnd;
     const inserted = document.execCommand('insertText', false, text);
     if (!inserted) {
-      // Fallback: direct value manipulation
       el.value = el.value.slice(0, start) + text + el.value.slice(end);
       el.setSelectionRange(start + text.length, start + text.length);
       el.dispatchEvent(new Event('input', { bubbles: true }));
@@ -55,30 +50,43 @@ function insertInto(el, text) {
   }
 }
 
-// ── Picker modal ──────────────────────────────────────────────────────────────
+// ── Picker state ──────────────────────────────────────────────────────────────
 
-let pickerOpen = false;
-let pickerEl = null;
-let pickerActiveIndex = 0;
-let pickerItems = [];
+let pickerOpen         = false;
+let pickerEl           = null;
+let pickerActiveIndex  = 0;   // flat index across ALL visible items
+let pickerItems        = [];  // flat ordered list matching DOM cards
 
-// Accent colors cycling per item index
-const ITEM_ACCENTS = [
-  { bar: '#6c63ff', badge: 'linear-gradient(135deg,#6c63ff,#a78bfa)', text: '#fff' },
-  { bar: '#0ea5e9', badge: 'linear-gradient(135deg,#0ea5e9,#38bdf8)', text: '#fff' },
-  { bar: '#10b981', badge: 'linear-gradient(135deg,#10b981,#34d399)', text: '#fff' },
-  { bar: '#f59e0b', badge: 'linear-gradient(135deg,#f59e0b,#fcd34d)', text: '#fff' },
-  { bar: '#ef4444', badge: 'linear-gradient(135deg,#ef4444,#fca5a5)', text: '#fff' },
-  { bar: '#ec4899', badge: 'linear-gradient(135deg,#ec4899,#f9a8d4)', text: '#fff' },
+// ── Gallery tile gradients (light-friendly, vivid) ───────────────────────────
+// 12 gradients; tiles cycle through them per item index within each category.
+const TILE_GRADIENTS = [
+  'linear-gradient(135deg,#e0c3fc,#8ec5fc)',   // lavender → sky
+  'linear-gradient(135deg,#f9d976,#f39f86)',   // yellow → coral
+  'linear-gradient(135deg,#a1ffce,#faffd1)',   // mint → cream
+  'linear-gradient(135deg,#fbc2eb,#a6c1ee)',   // pink → periwinkle
+  'linear-gradient(135deg,#ffecd2,#fcb69f)',   // peach → salmon
+  'linear-gradient(135deg,#c2e9fb,#a1c4fd)',   // powder blue
+  'linear-gradient(135deg,#d4fc79,#96e6a1)',   // lime → green
+  'linear-gradient(135deg,#fccb90,#d57eeb)',   // orange → purple
+  'linear-gradient(135deg,#a8edea,#fed6e3)',   // aqua → blush
+  'linear-gradient(135deg,#e0f7fa,#80deea)',   // ice blue
+  'linear-gradient(135deg,#ffe0b2,#ffab91)',   // amber → deep orange
+  'linear-gradient(135deg,#f3e7e9,#e3eeff)',   // blush → very light blue
 ];
+
+// Tile size classes cycle in a repeating pattern to create gallery variation
+// Sizes: 'normal' = 1×1, 'wide' = 2-col span, 'tall' = 2-row span
+const SIZE_PATTERN = ['normal','normal','wide','normal','tall','normal','normal','wide','normal','normal'];
+
+// ── Styles ────────────────────────────────────────────────────────────────────
 
 const PICKER_STYLES = `
   #hk-overlay {
     position: fixed;
     inset: 0;
-    background: rgba(10,10,20,0.55);
-    backdrop-filter: blur(4px);
-    -webkit-backdrop-filter: blur(4px);
+    background: rgba(30,30,40,0.45);
+    backdrop-filter: blur(6px);
+    -webkit-backdrop-filter: blur(6px);
     z-index: 2147483646;
     display: flex;
     align-items: center;
@@ -86,261 +94,315 @@ const PICKER_STYLES = `
     font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
   }
   #hk-modal {
-    background: #0f0f17;
-    border-radius: 18px;
-    box-shadow: 0 24px 64px rgba(0,0,0,0.55), 0 0 0 1px rgba(255,255,255,0.07);
-    width: 540px;
-    max-width: 94vw;
-    max-height: 74vh;
+    background: #f8f8fb;
+    border-radius: 20px;
+    box-shadow: 0 32px 80px rgba(0,0,0,0.22), 0 0 0 1px rgba(0,0,0,0.06);
+    width: 680px;
+    max-width: 96vw;
+    max-height: 82vh;
     display: flex;
     flex-direction: column;
     overflow: hidden;
-    animation: hk-pop 0.18s cubic-bezier(0.34,1.56,0.64,1) both;
+    animation: hk-pop 0.2s cubic-bezier(0.34,1.45,0.64,1) both;
   }
   @keyframes hk-pop {
-    from { opacity: 0; transform: scale(0.92) translateY(10px); }
-    to   { opacity: 1; transform: scale(1)   translateY(0);     }
+    from { opacity:0; transform:scale(0.90) translateY(14px); }
+    to   { opacity:1; transform:scale(1)    translateY(0);    }
   }
+
+  /* ── Header ── */
   #hk-modal-header {
-    padding: 20px 22px 16px;
+    padding: 18px 22px 14px;
     display: flex;
     align-items: center;
-    gap: 10px;
-    border-bottom: 1px solid rgba(255,255,255,0.07);
+    gap: 12px;
+    background: #fff;
+    border-bottom: 1px solid #ebebeb;
+    flex-shrink: 0;
   }
   #hk-modal-title {
-    font-size: 15.6px;
-    font-weight: 700;
-    color: rgba(255,255,255,0.85);
-    letter-spacing: 0.12em;
+    font-size: 16px;
+    font-weight: 800;
+    letter-spacing: 0.1em;
     text-transform: uppercase;
-    flex: 1;
-  }
-  #hk-modal-title span {
-    display: inline-block;
-    background: linear-gradient(135deg,#6c63ff,#0ea5e9);
+    background: linear-gradient(135deg,#6c63ff 0%,#06b6d4 100%);
     -webkit-background-clip: text;
     -webkit-text-fill-color: transparent;
     background-clip: text;
+    flex: 1;
+    line-height: 1;
   }
-  .hk-badge-shortcut {
+  .hk-kbd-badge {
     font-size: 11px;
     font-weight: 600;
-    letter-spacing: 0.06em;
-    color: rgba(255,255,255,0.35);
-    background: rgba(255,255,255,0.07);
-    border: 1px solid rgba(255,255,255,0.1);
-    border-radius: 6px;
-    padding: 3px 9px;
-    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+    letter-spacing: 0.05em;
+    color: #999;
+    background: #f0f0f3;
+    border: 1px solid #ddd;
+    border-radius: 7px;
+    padding: 3px 10px;
   }
-  #hk-list {
+
+  /* ── Scrollable body ── */
+  #hk-body {
     overflow-y: auto;
     flex: 1;
-    padding: 8px 10px;
+    padding: 16px 18px 20px;
     scrollbar-width: thin;
-    scrollbar-color: rgba(255,255,255,0.12) transparent;
+    scrollbar-color: #ddd transparent;
   }
-  #hk-list::-webkit-scrollbar { width: 4px; }
-  #hk-list::-webkit-scrollbar-thumb { background: rgba(255,255,255,0.12); border-radius: 2px; }
-  .hk-item {
-    display: flex;
-    align-items: stretch;
-    border-radius: 12px;
-    margin-bottom: 6px;
-    cursor: pointer;
-    overflow: hidden;
-    background: rgba(255,255,255,0.04);
-    border: 1px solid rgba(255,255,255,0.06);
-    transition: background 0.13s, border-color 0.13s, transform 0.1s;
-    user-select: none;
-    position: relative;
-  }
-  .hk-item:last-child { margin-bottom: 0; }
-  .hk-item:hover {
-    background: rgba(255,255,255,0.08);
-    border-color: rgba(255,255,255,0.12);
-    transform: translateX(2px);
-  }
-  .hk-item.hk-active {
-    background: rgba(255,255,255,0.09);
-    border-color: rgba(255,255,255,0.18);
-  }
-  .hk-item.hk-active:hover {
-    background: rgba(255,255,255,0.11);
-  }
-  .hk-item-accent {
-    width: 4px;
-    flex-shrink: 0;
-    border-radius: 0;
-  }
-  .hk-item-body {
-    flex: 1;
-    padding: 13px 16px;
-    display: flex;
-    flex-direction: column;
-    gap: 5px;
-    min-width: 0;
-  }
-  .hk-item-top {
+  #hk-body::-webkit-scrollbar { width: 5px; }
+  #hk-body::-webkit-scrollbar-thumb { background:#ddd; border-radius:3px; }
+
+  /* ── Category section ── */
+  .hk-cat-section { margin-bottom: 20px; }
+  .hk-cat-section:last-child { margin-bottom: 0; }
+  .hk-cat-label {
+    font-size: 10.5px;
+    font-weight: 700;
+    letter-spacing: 0.14em;
+    text-transform: uppercase;
+    color: #aaa;
+    margin-bottom: 10px;
     display: flex;
     align-items: center;
-    gap: 10px;
+    gap: 8px;
   }
-  .hk-item-label {
+  .hk-cat-label::after {
+    content: '';
+    flex: 1;
+    height: 1px;
+    background: #e8e8e8;
+  }
+
+  /* ── Gallery grid ── */
+  .hk-gallery {
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    gap: 10px;
+    grid-auto-rows: 110px;
+  }
+
+  /* ── Tile base ── */
+  .hk-tile {
+    border-radius: 14px;
+    overflow: hidden;
+    cursor: pointer;
+    position: relative;
+    transition: transform 0.15s ease, box-shadow 0.15s ease;
+    box-shadow: 0 2px 8px rgba(0,0,0,0.08);
+    user-select: none;
+    outline: none;
+  }
+  .hk-tile.hk-wide  { grid-column: span 2; }
+  .hk-tile.hk-tall  { grid-row:    span 2; }
+  .hk-tile:hover {
+    transform: translateY(-3px) scale(1.01);
+    box-shadow: 0 10px 28px rgba(0,0,0,0.15);
+    z-index: 2;
+  }
+  .hk-tile.hk-active {
+    box-shadow: 0 0 0 3px #6c63ff, 0 8px 24px rgba(108,99,255,0.25);
+    transform: translateY(-2px) scale(1.01);
+    z-index: 3;
+  }
+
+  /* ── Tile gradient background ── */
+  .hk-tile-bg {
+    position: absolute;
+    inset: 0;
+    transition: opacity 0.15s;
+  }
+  .hk-tile:hover .hk-tile-bg { opacity: 0.9; }
+
+  /* ── Tile overlay scrim (bottom) ── */
+  .hk-tile-scrim {
+    position: absolute;
+    inset: 0;
+    background: linear-gradient(to bottom, rgba(255,255,255,0) 30%, rgba(255,255,255,0.72) 100%);
+  }
+
+  /* ── Tile text content ── */
+  .hk-tile-content {
+    position: absolute;
+    inset: 0;
+    display: flex;
+    flex-direction: column;
+    justify-content: flex-end;
+    padding: 10px 12px;
+    gap: 2px;
+  }
+  .hk-tile-label {
     font-size: 15.6px;
     font-weight: 700;
-    color: rgba(255,255,255,0.92);
+    color: #1a1a2e;
+    line-height: 1.2;
     white-space: nowrap;
     overflow: hidden;
     text-overflow: ellipsis;
   }
-  .hk-item-pill {
-    flex-shrink: 0;
-    font-size: 9.5px;
-    font-weight: 700;
-    letter-spacing: 0.08em;
-    text-transform: uppercase;
-    color: #fff;
-    border-radius: 20px;
-    padding: 2px 9px;
-    opacity: 0.85;
-  }
-  .hk-item-message {
+  .hk-tile.hk-tall .hk-tile-label { font-size: 17px; }
+  .hk-tile.hk-wide .hk-tile-label { font-size: 16px; }
+  .hk-tile-msg {
     font-size: 14px;
-    color: rgba(255,255,255,0.42);
-    white-space: pre-wrap;
-    word-break: break-word;
-    max-height: 44px;
+    color: rgba(26,26,46,0.58);
+    white-space: nowrap;
     overflow: hidden;
-    line-height: 1.5;
+    text-overflow: ellipsis;
+    line-height: 1.35;
   }
-  .hk-item-idx {
-    flex-shrink: 0;
-    align-self: center;
-    margin-right: 14px;
-    font-size: 11px;
-    font-weight: 600;
-    color: rgba(255,255,255,0.18);
-    font-variant-numeric: tabular-nums;
+  .hk-tile.hk-tall .hk-tile-msg {
+    white-space: pre-wrap;
+    overflow: hidden;
+    display: -webkit-box;
+    -webkit-line-clamp: 3;
+    -webkit-box-orient: vertical;
   }
+
+  /* ── Empty state ── */
   .hk-empty {
-    padding: 40px 16px;
+    padding: 48px 20px;
     text-align: center;
-    color: rgba(255,255,255,0.25);
+    color: #bbb;
     font-size: 15.6px;
   }
 `;
 
 function ensureStyles() {
   if (document.getElementById('hk-styles')) return;
-  const style = document.createElement('style');
-  style.id = 'hk-styles';
-  style.textContent = PICKER_STYLES;
-  document.head.appendChild(style);
+  const s = document.createElement('style');
+  s.id = 'hk-styles';
+  s.textContent = PICKER_STYLES;
+  document.head.appendChild(s);
 }
 
-function renderPickerItems(filter) {
-  const list = document.getElementById('hk-list');
-  if (!list) return;
+// ── Build grouped structure ───────────────────────────────────────────────────
 
-  const q = (filter || '').toLowerCase();
-  pickerItems = shortcuts.filter(sc =>
-    !q ||
-    (sc.label || '').toLowerCase().includes(q) ||
-    sc.message.toLowerCase().includes(q)
-  );
+function groupByCategory(items) {
+  const map = new Map();
+  items.forEach(sc => {
+    const cat = (sc.category || 'General').trim() || 'General';
+    if (!map.has(cat)) map.set(cat, []);
+    map.get(cat).push(sc);
+  });
+  return map; // Map<string, snippet[]>
+}
 
-  list.innerHTML = '';
+// ── Render ────────────────────────────────────────────────────────────────────
 
-  if (pickerItems.length === 0) {
+function renderPickerItems() {
+  const body = document.getElementById('hk-body');
+  if (!body) return;
+  body.innerHTML = '';
+  pickerItems = [];
+
+  if (shortcuts.length === 0) {
     const empty = document.createElement('div');
     empty.className = 'hk-empty';
-    empty.textContent = shortcuts.length === 0
-      ? 'No snippets saved yet. Add some in Options.'
-      : 'No matches.';
-    list.appendChild(empty);
+    empty.textContent = 'No snippets saved yet. Add some in Options.';
+    body.appendChild(empty);
     pickerActiveIndex = -1;
     return;
   }
 
-  pickerActiveIndex = 0;
-  pickerItems.forEach((sc, i) => {
-    const accent = ITEM_ACCENTS[i % ITEM_ACCENTS.length];
+  const groups = groupByCategory(shortcuts);
+  let globalIdx = 0;
 
-    const item = document.createElement('div');
-    item.className = 'hk-item' + (i === 0 ? ' hk-active' : '');
+  groups.forEach((items, catName) => {
+    // Section wrapper
+    const section = document.createElement('div');
+    section.className = 'hk-cat-section';
 
-    // Left accent bar
-    const accentBar = document.createElement('div');
-    accentBar.className = 'hk-item-accent';
-    accentBar.style.background = accent.bar;
+    // Category label
+    const catLabel = document.createElement('div');
+    catLabel.className = 'hk-cat-label';
+    catLabel.textContent = catName;
+    section.appendChild(catLabel);
 
-    // Body
-    const body = document.createElement('div');
-    body.className = 'hk-item-body';
+    // Gallery grid
+    const grid = document.createElement('div');
+    grid.className = 'hk-gallery';
 
-    // Top row: label + pill badge
-    const top = document.createElement('div');
-    top.className = 'hk-item-top';
+    items.forEach((sc, localIdx) => {
+      const sizeClass = SIZE_PATTERN[localIdx % SIZE_PATTERN.length];
+      const grad      = TILE_GRADIENTS[globalIdx % TILE_GRADIENTS.length];
+      const myIndex   = globalIdx;
 
-    const labelEl = document.createElement('div');
-    labelEl.className = 'hk-item-label';
-    labelEl.textContent = sc.label || '(no label)';
+      pickerItems.push(sc);
 
-    const pill = document.createElement('span');
-    pill.className = 'hk-item-pill';
-    pill.style.background = accent.badge;
-    pill.style.color = accent.text;
-    pill.textContent = 'snippet';
+      const tile = document.createElement('div');
+      tile.className = 'hk-tile' +
+        (sizeClass === 'wide' ? ' hk-wide' : '') +
+        (sizeClass === 'tall' ? ' hk-tall' : '') +
+        (myIndex === 0        ? ' hk-active' : '');
+      tile.tabIndex = -1;
+      tile.dataset.idx = myIndex;
 
-    top.appendChild(labelEl);
-    top.appendChild(pill);
+      const bg = document.createElement('div');
+      bg.className = 'hk-tile-bg';
+      bg.style.background = grad;
 
-    const msgEl = document.createElement('div');
-    msgEl.className = 'hk-item-message';
-    msgEl.textContent = sc.message;
+      const scrim = document.createElement('div');
+      scrim.className = 'hk-tile-scrim';
 
-    body.appendChild(top);
-    body.appendChild(msgEl);
+      const content = document.createElement('div');
+      content.className = 'hk-tile-content';
 
-    // Index number on the right
-    const idxEl = document.createElement('div');
-    idxEl.className = 'hk-item-idx';
-    idxEl.textContent = String(i + 1).padStart(2, '0');
+      const labelEl = document.createElement('div');
+      labelEl.className = 'hk-tile-label';
+      labelEl.textContent = sc.label || '(no label)';
 
-    item.appendChild(accentBar);
-    item.appendChild(body);
-    item.appendChild(idxEl);
+      const msgEl = document.createElement('div');
+      msgEl.className = 'hk-tile-msg';
+      msgEl.textContent = sc.message;
 
-    item.addEventListener('mousedown', (e) => {
-      e.preventDefault(); // keep lastFocused from being cleared
-      selectPickerItem(i);
+      content.appendChild(labelEl);
+      content.appendChild(msgEl);
+
+      tile.appendChild(bg);
+      tile.appendChild(scrim);
+      tile.appendChild(content);
+
+      tile.addEventListener('mousedown', (e) => {
+        e.preventDefault();
+        selectPickerItem(myIndex);
+      });
+
+      grid.appendChild(tile);
+      globalIdx++;
     });
 
-    list.appendChild(item);
+    section.appendChild(grid);
+    body.appendChild(section);
   });
+
+  pickerActiveIndex = 0;
 }
 
+// ── Active tile helpers ───────────────────────────────────────────────────────
+
 function setActivePickerItem(idx) {
-  const list = document.getElementById('hk-list');
-  if (!list) return;
-  const items = list.querySelectorAll('.hk-item');
-  items.forEach(el => el.classList.remove('hk-active'));
-  if (idx >= 0 && idx < items.length) {
-    items[idx].classList.add('hk-active');
-    items[idx].scrollIntoView({ block: 'nearest' });
-    pickerActiveIndex = idx;
+  if (idx < 0 || idx >= pickerItems.length) return;
+  const body = document.getElementById('hk-body');
+  if (!body) return;
+  body.querySelectorAll('.hk-tile').forEach(el => el.classList.remove('hk-active'));
+  const target = body.querySelector(`.hk-tile[data-idx="${idx}"]`);
+  if (target) {
+    target.classList.add('hk-active');
+    target.scrollIntoView({ block: 'nearest', behavior: 'smooth' });
   }
+  pickerActiveIndex = idx;
 }
 
 function selectPickerItem(idx) {
   if (idx < 0 || idx >= pickerItems.length) return;
-  const text = pickerItems[idx].message;
+  const text   = pickerItems[idx].message;
   const target = lastFocused;
   closePicker();
   insertInto(target, text);
 }
+
+// ── Open / close ──────────────────────────────────────────────────────────────
 
 function openPicker() {
   if (pickerOpen) return;
@@ -349,47 +411,47 @@ function openPicker() {
 
   const overlay = document.createElement('div');
   overlay.id = 'hk-overlay';
+  overlay.tabIndex = -1;
 
   const modal = document.createElement('div');
   modal.id = 'hk-modal';
 
-  // Header (title only — no search bar, no footer)
+  // Header
   const header = document.createElement('div');
   header.id = 'hk-modal-header';
 
   const title = document.createElement('div');
   title.id = 'hk-modal-title';
-  title.innerHTML = '<span>hot-keys</span>';
+  title.textContent = 'hot-keys';
 
-  const shortcutBadge = document.createElement('div');
-  shortcutBadge.className = 'hk-badge-shortcut';
-  shortcutBadge.textContent = 'Alt + S';
+  const badge = document.createElement('div');
+  badge.className = 'hk-kbd-badge';
+  badge.textContent = 'Alt + S';
 
   header.appendChild(title);
-  header.appendChild(shortcutBadge);
+  header.appendChild(badge);
 
-  // List
-  const list = document.createElement('div');
-  list.id = 'hk-list';
+  // Body (scrollable gallery)
+  const body = document.createElement('div');
+  body.id = 'hk-body';
 
   modal.appendChild(header);
-  modal.appendChild(list);
+  modal.appendChild(body);
   overlay.appendChild(modal);
   document.body.appendChild(overlay);
   pickerEl = overlay;
 
-  renderPickerItems('');
+  renderPickerItems();
 
   overlay.addEventListener('mousedown', (e) => {
     if (e.target === overlay) closePicker();
   });
 
-  // Keyboard navigation directly on overlay (no search input to focus)
   overlay.addEventListener('keydown', (e) => {
-    if (e.key === 'ArrowDown') {
+    if (e.key === 'ArrowRight' || e.key === 'ArrowDown') {
       e.preventDefault();
       setActivePickerItem(Math.min(pickerActiveIndex + 1, pickerItems.length - 1));
-    } else if (e.key === 'ArrowUp') {
+    } else if (e.key === 'ArrowLeft' || e.key === 'ArrowUp') {
       e.preventDefault();
       setActivePickerItem(Math.max(pickerActiveIndex - 1, 0));
     } else if (e.key === 'Enter') {
@@ -406,15 +468,10 @@ function openPicker() {
 function closePicker() {
   if (!pickerOpen) return;
   pickerOpen = false;
-  if (pickerEl) {
-    pickerEl.remove();
-    pickerEl = null;
-  }
+  if (pickerEl) { pickerEl.remove(); pickerEl = null; }
 }
 
-// ── Global keydown: Alt+S toggles picker; Esc closes it ──────────────────────
-// Uses e.code ('KeyS') in addition to e.key so that the shortcut works
-// regardless of the active keyboard layout (e.g. Thai, Arabic, CJK, etc.).
+// ── Global hotkey: Alt+S (layout-independent via e.code) ─────────────────────
 
 document.addEventListener('keydown', (e) => {
   if (e.altKey && !e.ctrlKey && !e.metaKey &&
