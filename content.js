@@ -62,11 +62,23 @@ let pickerEl = null;
 let pickerActiveIndex = 0;
 let pickerItems = [];
 
+// Accent colors cycling per item index
+const ITEM_ACCENTS = [
+  { bar: '#6c63ff', badge: 'linear-gradient(135deg,#6c63ff,#a78bfa)', text: '#fff' },
+  { bar: '#0ea5e9', badge: 'linear-gradient(135deg,#0ea5e9,#38bdf8)', text: '#fff' },
+  { bar: '#10b981', badge: 'linear-gradient(135deg,#10b981,#34d399)', text: '#fff' },
+  { bar: '#f59e0b', badge: 'linear-gradient(135deg,#f59e0b,#fcd34d)', text: '#fff' },
+  { bar: '#ef4444', badge: 'linear-gradient(135deg,#ef4444,#fca5a5)', text: '#fff' },
+  { bar: '#ec4899', badge: 'linear-gradient(135deg,#ec4899,#f9a8d4)', text: '#fff' },
+];
+
 const PICKER_STYLES = `
   #hk-overlay {
     position: fixed;
     inset: 0;
-    background: rgba(0,0,0,0.35);
+    background: rgba(10,10,20,0.55);
+    backdrop-filter: blur(4px);
+    -webkit-backdrop-filter: blur(4px);
     z-index: 2147483646;
     display: flex;
     align-items: center;
@@ -74,92 +86,149 @@ const PICKER_STYLES = `
     font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
   }
   #hk-modal {
-    background: #fff;
-    border-radius: 10px;
-    box-shadow: 0 8px 32px rgba(0,0,0,0.22);
-    width: 500px;
-    max-width: 92vw;
-    max-height: 72vh;
+    background: #0f0f17;
+    border-radius: 18px;
+    box-shadow: 0 24px 64px rgba(0,0,0,0.55), 0 0 0 1px rgba(255,255,255,0.07);
+    width: 540px;
+    max-width: 94vw;
+    max-height: 74vh;
     display: flex;
     flex-direction: column;
     overflow: hidden;
+    animation: hk-pop 0.18s cubic-bezier(0.34,1.56,0.64,1) both;
+  }
+  @keyframes hk-pop {
+    from { opacity: 0; transform: scale(0.92) translateY(10px); }
+    to   { opacity: 1; transform: scale(1)   translateY(0);     }
   }
   #hk-modal-header {
-    padding: 14px 16px 10px;
-    border-bottom: 1px solid #eee;
+    padding: 20px 22px 16px;
     display: flex;
     align-items: center;
     gap: 10px;
+    border-bottom: 1px solid rgba(255,255,255,0.07);
   }
-  #hk-search {
-    flex: 1;
-    border: 1px solid #ccc;
-    border-radius: 6px;
-    padding: 6px 10px;
-    font-size: 14px;
-    outline: none;
-    font-family: inherit;
-  }
-  #hk-search:focus { border-color: #4a90e2; }
   #hk-modal-title {
-    font-size: 12px;
-    font-weight: 600;
-    color: #aaa;
-    white-space: nowrap;
-    letter-spacing: 0.04em;
+    font-size: 15.6px;
+    font-weight: 700;
+    color: rgba(255,255,255,0.85);
+    letter-spacing: 0.12em;
     text-transform: uppercase;
+    flex: 1;
+  }
+  #hk-modal-title span {
+    display: inline-block;
+    background: linear-gradient(135deg,#6c63ff,#0ea5e9);
+    -webkit-background-clip: text;
+    -webkit-text-fill-color: transparent;
+    background-clip: text;
+  }
+  .hk-badge-shortcut {
+    font-size: 11px;
+    font-weight: 600;
+    letter-spacing: 0.06em;
+    color: rgba(255,255,255,0.35);
+    background: rgba(255,255,255,0.07);
+    border: 1px solid rgba(255,255,255,0.1);
+    border-radius: 6px;
+    padding: 3px 9px;
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
   }
   #hk-list {
     overflow-y: auto;
     flex: 1;
+    padding: 8px 10px;
+    scrollbar-width: thin;
+    scrollbar-color: rgba(255,255,255,0.12) transparent;
   }
+  #hk-list::-webkit-scrollbar { width: 4px; }
+  #hk-list::-webkit-scrollbar-thumb { background: rgba(255,255,255,0.12); border-radius: 2px; }
   .hk-item {
-    padding: 10px 16px;
+    display: flex;
+    align-items: stretch;
+    border-radius: 12px;
+    margin-bottom: 6px;
     cursor: pointer;
-    border-bottom: 1px solid #f2f2f2;
+    overflow: hidden;
+    background: rgba(255,255,255,0.04);
+    border: 1px solid rgba(255,255,255,0.06);
+    transition: background 0.13s, border-color 0.13s, transform 0.1s;
+    user-select: none;
+    position: relative;
+  }
+  .hk-item:last-child { margin-bottom: 0; }
+  .hk-item:hover {
+    background: rgba(255,255,255,0.08);
+    border-color: rgba(255,255,255,0.12);
+    transform: translateX(2px);
+  }
+  .hk-item.hk-active {
+    background: rgba(255,255,255,0.09);
+    border-color: rgba(255,255,255,0.18);
+  }
+  .hk-item.hk-active:hover {
+    background: rgba(255,255,255,0.11);
+  }
+  .hk-item-accent {
+    width: 4px;
+    flex-shrink: 0;
+    border-radius: 0;
+  }
+  .hk-item-body {
+    flex: 1;
+    padding: 13px 16px;
     display: flex;
     flex-direction: column;
-    gap: 4px;
-    user-select: none;
+    gap: 5px;
+    min-width: 0;
   }
-  .hk-item:last-child { border-bottom: none; }
-  .hk-item.hk-active { background: #eef4fd; }
-  .hk-item:hover { background: #f5f9ff; }
-  .hk-item.hk-active:hover { background: #eef4fd; }
+  .hk-item-top {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+  }
   .hk-item-label {
-    font-size: 13px;
-    font-weight: 600;
-    color: #1a1a1a;
+    font-size: 15.6px;
+    font-weight: 700;
+    color: rgba(255,255,255,0.92);
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+  }
+  .hk-item-pill {
+    flex-shrink: 0;
+    font-size: 9.5px;
+    font-weight: 700;
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+    color: #fff;
+    border-radius: 20px;
+    padding: 2px 9px;
+    opacity: 0.85;
   }
   .hk-item-message {
-    font-size: 12px;
-    color: #777;
+    font-size: 14px;
+    color: rgba(255,255,255,0.42);
     white-space: pre-wrap;
     word-break: break-word;
-    max-height: 48px;
+    max-height: 44px;
     overflow: hidden;
+    line-height: 1.5;
+  }
+  .hk-item-idx {
+    flex-shrink: 0;
+    align-self: center;
+    margin-right: 14px;
+    font-size: 11px;
+    font-weight: 600;
+    color: rgba(255,255,255,0.18);
+    font-variant-numeric: tabular-nums;
   }
   .hk-empty {
-    padding: 28px 16px;
+    padding: 40px 16px;
     text-align: center;
-    color: #bbb;
-    font-size: 13px;
-  }
-  #hk-modal-footer {
-    padding: 8px 16px;
-    border-top: 1px solid #eee;
-    font-size: 11px;
-    color: #bbb;
-    display: flex;
-    gap: 14px;
-  }
-  #hk-modal-footer kbd {
-    background: #f0f0f0;
-    border: 1px solid #ccc;
-    border-radius: 3px;
-    padding: 1px 5px;
-    font-size: 10px;
-    font-family: monospace;
+    color: rgba(255,255,255,0.25);
+    font-size: 15.6px;
   }
 `;
 
@@ -197,19 +266,52 @@ function renderPickerItems(filter) {
 
   pickerActiveIndex = 0;
   pickerItems.forEach((sc, i) => {
+    const accent = ITEM_ACCENTS[i % ITEM_ACCENTS.length];
+
     const item = document.createElement('div');
     item.className = 'hk-item' + (i === 0 ? ' hk-active' : '');
+
+    // Left accent bar
+    const accentBar = document.createElement('div');
+    accentBar.className = 'hk-item-accent';
+    accentBar.style.background = accent.bar;
+
+    // Body
+    const body = document.createElement('div');
+    body.className = 'hk-item-body';
+
+    // Top row: label + pill badge
+    const top = document.createElement('div');
+    top.className = 'hk-item-top';
 
     const labelEl = document.createElement('div');
     labelEl.className = 'hk-item-label';
     labelEl.textContent = sc.label || '(no label)';
 
+    const pill = document.createElement('span');
+    pill.className = 'hk-item-pill';
+    pill.style.background = accent.badge;
+    pill.style.color = accent.text;
+    pill.textContent = 'snippet';
+
+    top.appendChild(labelEl);
+    top.appendChild(pill);
+
     const msgEl = document.createElement('div');
     msgEl.className = 'hk-item-message';
     msgEl.textContent = sc.message;
 
-    item.appendChild(labelEl);
-    item.appendChild(msgEl);
+    body.appendChild(top);
+    body.appendChild(msgEl);
+
+    // Index number on the right
+    const idxEl = document.createElement('div');
+    idxEl.className = 'hk-item-idx';
+    idxEl.textContent = String(i + 1).padStart(2, '0');
+
+    item.appendChild(accentBar);
+    item.appendChild(body);
+    item.appendChild(idxEl);
 
     item.addEventListener('mousedown', (e) => {
       e.preventDefault(); // keep lastFocused from being cleared
@@ -251,38 +353,27 @@ function openPicker() {
   const modal = document.createElement('div');
   modal.id = 'hk-modal';
 
-  // Header
+  // Header (title only — no search bar, no footer)
   const header = document.createElement('div');
   header.id = 'hk-modal-header';
 
-  const search = document.createElement('input');
-  search.id = 'hk-search';
-  search.type = 'text';
-  search.placeholder = 'Search snippets…';
-  search.autocomplete = 'off';
-
   const title = document.createElement('div');
   title.id = 'hk-modal-title';
-  title.textContent = 'hot-keys';
+  title.innerHTML = '<span>hot-keys</span>';
 
-  header.appendChild(search);
+  const shortcutBadge = document.createElement('div');
+  shortcutBadge.className = 'hk-badge-shortcut';
+  shortcutBadge.textContent = 'Alt + S';
+
   header.appendChild(title);
+  header.appendChild(shortcutBadge);
 
   // List
   const list = document.createElement('div');
   list.id = 'hk-list';
 
-  // Footer
-  const footer = document.createElement('div');
-  footer.id = 'hk-modal-footer';
-  footer.innerHTML =
-    '<span><kbd>↑↓</kbd> navigate</span>' +
-    '<span><kbd>Enter</kbd> or click to insert</span>' +
-    '<span><kbd>Esc</kbd> close</span>';
-
   modal.appendChild(header);
   modal.appendChild(list);
-  modal.appendChild(footer);
   overlay.appendChild(modal);
   document.body.appendChild(overlay);
   pickerEl = overlay;
@@ -293,11 +384,8 @@ function openPicker() {
     if (e.target === overlay) closePicker();
   });
 
-  search.addEventListener('input', () => {
-    renderPickerItems(search.value);
-  });
-
-  search.addEventListener('keydown', (e) => {
+  // Keyboard navigation directly on overlay (no search input to focus)
+  overlay.addEventListener('keydown', (e) => {
     if (e.key === 'ArrowDown') {
       e.preventDefault();
       setActivePickerItem(Math.min(pickerActiveIndex + 1, pickerItems.length - 1));
@@ -312,7 +400,7 @@ function openPicker() {
     }
   });
 
-  setTimeout(() => search.focus(), 0);
+  setTimeout(() => overlay.focus(), 0);
 }
 
 function closePicker() {
@@ -325,9 +413,12 @@ function closePicker() {
 }
 
 // ── Global keydown: Alt+S toggles picker; Esc closes it ──────────────────────
+// Uses e.code ('KeyS') in addition to e.key so that the shortcut works
+// regardless of the active keyboard layout (e.g. Thai, Arabic, CJK, etc.).
 
 document.addEventListener('keydown', (e) => {
-  if (e.altKey && !e.ctrlKey && !e.metaKey && e.key.toLowerCase() === 's') {
+  if (e.altKey && !e.ctrlKey && !e.metaKey &&
+      (e.code === 'KeyS' || e.key.toLowerCase() === 's')) {
     e.preventDefault();
     pickerOpen ? closePicker() : openPicker();
     return;
