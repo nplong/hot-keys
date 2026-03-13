@@ -13,14 +13,33 @@
       background: #f5f5f5;
       color: #222;
       padding: 24px;
-      min-width: 640px;
+      min-width: 560px;
     }
 
     h1 {
       font-size: 20px;
       font-weight: 600;
-      margin-bottom: 20px;
+      margin-bottom: 10px;
       color: #111;
+    }
+
+    .tip {
+      margin-bottom: 20px;
+      font-size: 13px;
+      color: #555;
+      background: #eef4fd;
+      border: 1px solid #c5d9f5;
+      border-radius: 6px;
+      padding: 8px 12px;
+    }
+
+    .tip kbd {
+      background: #f0f0f0;
+      border: 1px solid #ccc;
+      border-radius: 3px;
+      padding: 1px 6px;
+      font-size: 12px;
+      font-family: monospace;
     }
 
     table {
@@ -51,10 +70,9 @@
     }
 
     tr:last-child td { border-bottom: none; }
-
     tr.saved-row:hover { background: #fafafa; }
 
-    select, input[type="text"], textarea {
+    input[type="text"], textarea {
       border: 1px solid #ccc;
       border-radius: 4px;
       padding: 5px 8px;
@@ -64,28 +82,17 @@
       transition: border-color 0.15s;
     }
 
-    select:focus, input[type="text"]:focus, textarea:focus {
+    input[type="text"]:focus, textarea:focus {
       border-color: #4a90e2;
       box-shadow: 0 0 0 2px rgba(74,144,226,0.15);
     }
 
-    .type-select { width: 90px; }
-
-    .trigger-input {
+    .label-input {
       width: 160px;
-      font-family: monospace;
-      cursor: pointer;
-      background: #fafafa;
-    }
-
-    .trigger-input.capturing {
-      background: #fffbe6;
-      border-color: #f0a500;
     }
 
     .message-textarea {
       width: 100%;
-      min-width: 200px;
       resize: vertical;
       min-height: 36px;
       max-height: 120px;
@@ -133,47 +140,38 @@
 <body>
   <h1>hot-keys</h1>
 
-  <p style="margin-bottom:16px;font-size:13px;color:#555;background:#eef4fd;border:1px solid #c5d9f5;border-radius:6px;padding:8px 12px;">
-    <strong>Tip:</strong> Press <kbd style="background:#f0f0f0;border:1px solid #ccc;border-radius:3px;padding:1px 6px;font-size:12px;font-family:monospace">Alt+S</kbd>
-    on any page to open the shortcut picker — browse, search, and copy any saved message to the clipboard.
+  <p class="tip">
+    Press <kbd>Alt+S</kbd> on any page to open the snippet picker,
+    then click an item to insert it into the focused text field.
   </p>
 
   <table id="shortcuts-table">
     <thead>
       <tr>
-        <th>Type</th>
-        <th>Trigger / Combo</th>
+        <th style="width:180px">Label</th>
         <th>Message</th>
-        <th>Actions</th>
+        <th style="width:120px">Actions</th>
       </tr>
     </thead>
     <tbody id="shortcuts-body">
-      <!-- Saved rows injected here by options.js -->
+      <!-- rows injected by options.js -->
     </tbody>
     <tfoot>
       <tr id="add-row">
         <td>
-          <select class="type-select" id="new-type">
-            <option value="combo">Key Combo</option>
-            <option value="trigger">Text Trigger</option>
-          </select>
-        </td>
-        <td>
-          <input type="text" class="trigger-input" id="new-trigger"
-                 placeholder="Click to capture…" readonly />
+          <input type="text" class="label-input" id="new-label"
+                 placeholder="e.g. Greeting" />
         </td>
         <td>
           <textarea class="message-textarea" id="new-message"
                     placeholder="Text to insert…"></textarea>
         </td>
-        <td>
-          <!-- add button placed below the table -->
-        </td>
+        <td></td>
       </tr>
     </tfoot>
   </table>
 
-  <button class="btn-add" id="btn-add">+ Add Shortcut</button>
+  <button class="btn-add" id="btn-add">+ Add Snippet</button>
   <div id="status"></div>
 
   <script src="options.js"></script>
